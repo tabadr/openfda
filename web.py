@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2015-2016 Bitergia
+# Copyright (C) 2016-2017 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
-# Authors:
+# Author:
 #     Teresa Abad Rueda
 #
 
@@ -154,7 +154,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         ''' %(s)
 
         return html
-        
+
 
     def get_page_companies(self, companies):
 

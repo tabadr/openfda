@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2015-2016 Bitergia
+# Copyright (C) 2016-2017 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,24 +16,19 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
-# Authors:
+# Author:
 #     Teresa Abad Rueda
 #
 
 
 import web
-import socketserver  #se pasa de web.py aqui pqq solo se utiliza aqui
+import socketserver
 
-PORT=8000 #Puerto por defecto
+PORT=8000
 
-##WEB SERVER
 
-Handler = web.testHTTPRequestHandler  #cojo la clase del fichero web.py
+Handler = web.testHTTPRequestHandler
 httpd = socketserver.TCPServer(("", PORT), Handler)
-#httpd =objeto que ejecuta un metodo para siempre
-#HAndler= es un objeto que es una instancia de es
-#cada vez que llega un cliente se crea un handler e interactua con el
 
-#se crean objetos handler para poder crear conexiones con los clientes, los handler son objetos basados en la clase Handler que es como nos indica como tratar a esos cli
 print("serving at port", PORT)
 httpd.serve_forever()
