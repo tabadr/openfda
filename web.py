@@ -41,37 +41,63 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         events = json.loads(data)
         return events
 
+
     def get_drugs_from_events(self):
 
         events = self.get_event()
-        medicamentos = []
+        drugs = []
         results = events['results']
         for event in results:
-            medicamentos += [event['patient']['drug'][0]['medicinalproduct']]
-        return medicamentos
+            drugs += [event['patient']['drug'][0]['medicinalproduct']]
+        return drugs
 
 
-    def get_events_search(self):
-        incognita=self.path.split('=')[1]
+    def get_events_search_medicinal_product(self):
+
+        path=self.path.split('=')[1]
         conn = http.client.HTTPSConnection(self.OPENFDA_API_URL)
-        conn.request('GET',self.OPENFDA_API_EVENT + '?search=patient.drug.medicinalproduct:"'+incognita+'"&limit=10')
+        conn.request('GET',self.OPENFDA_API_EVENT + '?search=patient.drug.medicinalproduct:"'+path+'"&limit=10')
         r1 = conn.getresponse()
         data1 = r1.read()
         data = data1.decode('utf8')
         events= json.loads(data)
         return events
 
-    def get_empresas(self):
 
-        events= self.get_events_search()
-        empresas = []
+    def get_events_search_companynumb(self):
+
+        path=self.path.split('=')[1]
+        conn = http.client.HTTPSConnection(self.OPENFDA_API_URL)
+        conn.request('GET',self.OPENFDA_API_EVENT + '?search=companynumb:"'+path+'"&limit=10')
+        r1 = conn.getresponse()
+        data1 = r1.read()
+        data = data1.decode('utf8')
+        events= json.loads(data)
+        return events
+
+
+    def get_companies(self):
+
+        events= self.get_events_search_medicinal_product()
+        companies = []
         results = events['results']
         for event in results:
-            empresas += [event['companynumb']]
-        return empresas
+            companies += [event['companynumb']]
+        return companies
+
+
+    def get_drugs(self):
+
+        events=self.get_events_search_companynumb()
+        drugs=[]
+        results= events['results']
+        for drug in results:
+            drugs +=[drug['patient']['drug'][0]['medicinalproduct']]
+        return drugs
 
 
     def get_companynumb(self):
+
         events=self.get_event()
         companynumb=[]
         results= events['results']
@@ -87,19 +113,19 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             <head>
             </head>
             <body>
-                <form method="get" action="receivedrug">
+                <form method="get" action="listDrugs">
                     <input type = "submit" value="Drug List: Send to OpenFDA">
                     </input>
                 </form>
-                <form method="get" action="search">
+                <form method="get" action="searchDrug">
                     <input type = "text" name="drug"></input>
                     <input type = "submit" value="Drug Search: Send to OpenFDA">
                     </input>
                 </form>
-                <form method="get" action="receivecompany">
+                <form method="get" action="listCompanies">
                     <input type = "submit" value="Companynumb List: Send to OpenFDA"></input>
                 </form>
-                <form method="get" action="search">
+                <form method="get" action="searchCompany">
                     <input type = "text" name="company"></input>
                     <input type = "submit" value="Search drug from companynumb: Send to OpenFDA"></input>
                 </form>
@@ -108,11 +134,12 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         """
         return html
 
-    def get_page_drugs(self, medicamentos):
+
+    def get_page_drugs(self, drugs):
 
         s = ''
-        for med in medicamentos:
-            s += '<li>' +med+ '</li>'
+        for drug in drugs:
+            s += '<li>' +drug+ '</li>'
 
         html = '''
         <html>
@@ -127,12 +154,13 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         ''' %(s)
 
         return html
+        
 
-    def get_page_companies(self, medicamentos):
+    def get_page_companies(self, companies):
 
         s = ''
-        for med in medicamentos:
-            s += '<li>' +med+ '</li>'
+        for company in companies:
+            s += '<li>' +company+ '</li>'
 
         html = '''
         <html>
@@ -153,18 +181,20 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
 
         main_page = False
-        is_event = False
-        is_search = False
-        is_company= False
+        is_list_drugs = False
+        is_search_drug = False
+        is_list_companies= False
+        is_search_drug= False
         if self.path == '/':
             main_page = True
-        elif self.path =='/receivedrug':
-            is_event = True
-        elif self.path == '/receivecompany':
-            is_company= True
-        elif self.path.find('search'):
-            is_search = True
-
+        elif '/listDrugs' in self.path:
+            is_list_drugs = True
+        elif '/listCompanies' in self.path:
+            is_list_companies= True
+        elif 'searchDrug' in self.path:
+            is_search_drug = True
+        elif 'searchCompany' in self.path:
+            is_search_companies= True
 
 
         self.send_response(200)
@@ -178,17 +208,22 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         if main_page:
             html = self.get_main_page()
             self.wfile.write(bytes(html, "utf8"))
-        elif is_event:
-            medicamentos = self.get_drugs_from_events()
-            html2 = self.get_page_drugs(medicamentos)
+        elif is_list_drugs:
+            drugs = self.get_drugs_from_events()
+            html = self.get_page_drugs(drugs)
             event = self.get_event()
-            self.wfile.write(bytes(html2, "utf8"))
-        elif is_search:
-            empresas = self.get_empresas()
-            html3 = self.get_page_companies(empresas)
-            self.wfile.write(bytes(html3, "utf8"))
-        elif is_company:
+            self.wfile.write(bytes(html, "utf8"))
+        elif is_search_drug:
+            companies = self.get_companies()
+            html = self.get_page_companies(companies)
+            self.wfile.write(bytes(html, "utf8"))
+        elif is_list_companies:
             companynumb= self.get_companynumb()
-            html4= self.get_page_companies(companynumb)
-            self.wfile.write(bytes(html4, "utf8"))
+            html= self.get_page_companies(companynumb)
+            self.wfile.write(bytes(html, "utf8"))
+        elif is_search_companies:
+            drugs= self.get_drugs()
+            html = self.get_page_drugs(drugs)
+            self.wfile.write(bytes(html, "utf8"))
+
         return
