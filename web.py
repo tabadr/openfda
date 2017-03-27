@@ -33,8 +33,9 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def get_event(self):
 
+        limite=self.path.split('=')[1]
         conn = http.client.HTTPSConnection(self.OPENFDA_API_URL)
-        conn.request('GET',self.OPENFDA_API_EVENT + '?limit=10')
+        conn.request('GET',self.OPENFDA_API_EVENT + '?limit='+limite)
         r1 = conn.getresponse()
         data1 = r1.read()
         data = data1.decode('utf8')
@@ -68,7 +69,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
         path=self.path.split('=')[1]
         conn = http.client.HTTPSConnection(self.OPENFDA_API_URL)
-        conn.request('GET',self.OPENFDA_API_EVENT + '?search=companynumb:"'+path+'"&limit=10')
+        conn.request('GET',self.OPENFDA_API_EVENT + '?search=companynumb:'+path+'&limit=10')
         r1 = conn.getresponse()
         data1 = r1.read()
         data = data1.decode('utf8')
@@ -91,9 +92,10 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         events=self.get_events_search_companynumb()
         drugs=[]
         results= events['results']
-        for drug in results:
-            drugs +=[drug['patient']['drug'][0]['medicinalproduct']]
+        for event in results:
+            drugs +=[event['patient']['drug'][0]['medicinalproduct']]
         return drugs
+
 
 
     def get_companynumb(self):
@@ -105,6 +107,15 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             companynumb+=[company['companynumb']]
         return companynumb
 
+    def get_patient_sex(self):
+
+        events=self.get_event()
+        patientsex=[]
+        results=events['results']
+        for sex in results:
+            patientsex+=[sex['patient']['patientsex']]
+        return patientsex
+
 
     def get_main_page(self):
 
@@ -113,9 +124,11 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             <head>
             </head>
             <body>
+                <h1>OpenFDA Client</h1>
                 <form method="get" action="listDrugs">
-                    <input type = "submit" value="Drug List: Send to OpenFDA">
-                    </input>
+                    <input type = "submit" value="Drug List: Send to OpenFDA"></input>
+                    Limit:
+                    <input type = "text" name="limit"></input>
                 </form>
                 <form method="get" action="searchDrug">
                     <input type = "text" name="drug"></input>
@@ -124,11 +137,17 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 </form>
                 <form method="get" action="listCompanies">
                     <input type = "submit" value="Companynumb List: Send to OpenFDA"></input>
+                    Limit:
+                    <input type = "text" name="limit"></input>
                 </form>
                 <form method="get" action="searchCompany">
                     <input type = "text" name="company"></input>
                     <input type = "submit" value="Search drug from companynumb: Send to OpenFDA"></input>
                 </form>
+                <form method="get" action="patientsex">
+                    <input type = "submit" value="Patient sex: Send to OpenFDA"></input>
+                    Limit:
+                    <input type = "text" name="limit"></input>
             </body>
         </html>
         """
@@ -146,9 +165,9 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         <head> </head>
         <body>
             <h1>Medicinal Products</h1>
-            <ul>
+            <ol>
                 %s
-            </ul>
+            </ol>
         </body>
         </html>
         ''' %(s)
@@ -167,9 +186,29 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         <head> </head>
         <body>
             <h1>Companies</h1>
-            <ul>
+            <ol>
                 %s
-            </ul>
+            </ol>
+        </body>
+        </html>
+        ''' %(s)
+
+        return html
+
+    def get_page_patient_sex(sefl,patients):
+
+        s = ''
+        for sex in patients:
+            s += '<li>' +sex+ '</li>'
+
+        html = '''
+        <html>
+        <head> </head>
+        <body>
+            <h1>Patients</h1>
+            <ol>
+                %s
+            </ol>
         </body>
         </html>
         ''' %(s)
@@ -184,7 +223,8 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         is_list_drugs = False
         is_search_drug = False
         is_list_companies= False
-        is_search_drug= False
+        is_search_companies=False
+        is_list_patient_sex=False
         if self.path == '/':
             main_page = True
         elif '/listDrugs' in self.path:
@@ -195,6 +235,8 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             is_search_drug = True
         elif 'searchCompany' in self.path:
             is_search_companies= True
+        elif 'patientsex' in self.path:
+            is_list_patient_sex=True
 
 
         self.send_response(200)
@@ -224,6 +266,10 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         elif is_search_companies:
             drugs= self.get_drugs()
             html = self.get_page_drugs(drugs)
+            self.wfile.write(bytes(html, "utf8"))
+        elif is_list_patient_sex:
+            patientsex= self.get_patient_sex()
+            html= self.get_page_patient_sex(patientsex)
             self.wfile.write(bytes(html, "utf8"))
 
         return
