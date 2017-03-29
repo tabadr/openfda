@@ -205,7 +205,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         <html>
         <head> </head>
         <body>
-            <h1>Patients</h1>
+            <h1>Patients Sex</h1>
             <ol>
                 %s
             </ol>
@@ -213,6 +213,18 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         </html>
         ''' %(s)
 
+        return html
+
+    def get_page_error_404(self):
+        html='''
+        <html>
+        <head></head>
+        <body>
+            Error 404 Found
+            The action sent doesn't exist
+        </body>
+        </html>
+        '''
         return html
 
 
@@ -225,6 +237,8 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         is_list_companies= False
         is_search_companies=False
         is_list_patient_sex=False
+        is_not_url=False
+        is_found=True
         if self.path == '/':
             main_page = True
         elif '/listDrugs' in self.path:
@@ -237,9 +251,17 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             is_search_companies= True
         elif 'patientsex' in self.path:
             is_list_patient_sex=True
+        else:
+            is_not_url=True
+            is_found=False
+
+        if is_found:
+            self.send_response(200)
+        else:
+            self.send_response(404)
 
 
-        self.send_response(200)
+
         self.send_header('Content-type','text/html')
         self.end_headers()
 
@@ -271,5 +293,9 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             patientsex= self.get_patient_sex()
             html= self.get_page_patient_sex(patientsex)
             self.wfile.write(bytes(html, "utf8"))
+        elif is_not_url:
+            html= self.get_page_error_404()
+            self.wfile.write(bytes(html, "utf8"))
+
 
         return
