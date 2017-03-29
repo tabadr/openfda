@@ -144,7 +144,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                     <input type = "text" name="company"></input>
                     <input type = "submit" value="Search drug from companynumb: Send to OpenFDA"></input>
                 </form>
-                <form method="get" action="patientsex">
+                <form method="get" action="listGender">
                     <input type = "submit" value="Patient sex: Send to OpenFDA"></input>
                     Limit:
                     <input type = "text" name="limit"></input>
@@ -249,7 +249,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             is_search_drug = True
         elif 'searchCompany' in self.path:
             is_search_companies= True
-        elif 'patientsex' in self.path:
+        elif 'listGender' in self.path:
             is_list_patient_sex=True
         else:
             is_not_url=True
