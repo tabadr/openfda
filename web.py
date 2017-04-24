@@ -25,17 +25,15 @@ import http.server
 import http.client
 import json
 
-
-class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
+class OpenFDAClient():
 
     OPENFDA_API_URL = 'api.fda.gov'
     OPENFDA_API_EVENT = '/drug/event.json'
 
-    def get_event(self):
 
-        limite=self.path.split('=')[1]
+    def get_event(self,path):
         conn = http.client.HTTPSConnection(self.OPENFDA_API_URL)
-        conn.request('GET',self.OPENFDA_API_EVENT + '?limit='+limite)
+        conn.request('GET',self.OPENFDA_API_EVENT + '?limit='+path)
         r1 = conn.getresponse()
         data1 = r1.read()
         data = data1.decode('utf8')
@@ -43,19 +41,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         return events
 
 
-    def get_drugs_from_events(self):
-
-        events = self.get_event()
-        drugs = []
-        results = events['results']
-        for event in results:
-            drugs += [event['patient']['drug'][0]['medicinalproduct']]
-        return drugs
-
-
-    def get_events_search_medicinal_product(self):
-
-        path=self.path.split('=')[1]
+    def get_events_search_medicinal_product(self,path):
         conn = http.client.HTTPSConnection(self.OPENFDA_API_URL)
         conn.request('GET',self.OPENFDA_API_EVENT + '?search=patient.drug.medicinalproduct:"'+path+'"&limit=10')
         r1 = conn.getresponse()
@@ -64,10 +50,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         events= json.loads(data)
         return events
 
-
-    def get_events_search_companynumb(self):
-
-        path=self.path.split('=')[1]
+    def get_events_search_companynumb(self,path):
         conn = http.client.HTTPSConnection(self.OPENFDA_API_URL)
         conn.request('GET',self.OPENFDA_API_EVENT + '?search=companynumb:'+path+'&limit=10')
         r1 = conn.getresponse()
@@ -77,9 +60,13 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         return events
 
 
-    def get_companies(self):
 
-        events= self.get_events_search_medicinal_product()
+class OpenFDAParser():
+
+
+    def get_companies(self,path):
+        client= OpenFDAClient()
+        events= client.get_events_search_medicinal_product(path)
         companies = []
         results = events['results']
         for event in results:
@@ -87,9 +74,18 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         return companies
 
 
-    def get_drugs(self):
+    def get_drugs_from_events(self,path):
+        client= OpenFDAClient()
+        events = client.get_event(path)
+        drugs = []
+        results = events['results']
+        for event in results:
+            drugs += [event['patient']['drug'][0]['medicinalproduct']]
+        return drugs
 
-        events=self.get_events_search_companynumb()
+    def get_drugs(self,path):
+        client= OpenFDAClient()
+        events=client.get_events_search_companynumb(path)
         drugs=[]
         results= events['results']
         for event in results:
@@ -98,24 +94,28 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
 
 
-    def get_companynumb(self):
-
-        events=self.get_event()
+    def get_companynumb(self,path):
+        client= OpenFDAClient()
+        events=client.get_event(path)
         companynumb=[]
         results= events['results']
         for company in results:
             companynumb+=[company['companynumb']]
         return companynumb
 
-    def get_patient_sex(self):
 
-        events=self.get_event()
+    def get_patient_sex(self,path):
+        client= OpenFDAClient()
+        events=client.get_event(path)
         patientsex=[]
         results=events['results']
         for sex in results:
             patientsex+=[sex['patient']['patientsex']]
         return patientsex
 
+
+
+class OpenFDAHTML():
 
     def get_main_page(self):
 
@@ -220,7 +220,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         <html>
         <head></head>
         <body>
-            Error 404 Found
+            <h1>Error 404 Found</h1>
             The action sent doesn't exist
         </body>
         </html>
@@ -229,7 +229,13 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
 
 
+class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
+
     def do_GET(self):
+
+        client= OpenFDAClient()
+        parser= OpenFDAParser()
+        HTML= OpenFDAHTML()
 
         main_page = False
         is_list_drugs = False
@@ -239,6 +245,8 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         is_list_patient_sex=False
         is_not_url=False
         is_found=True
+        is_secret=False
+        is_redirect=False
         if self.path == '/':
             main_page = True
         elif '/listDrugs' in self.path:
@@ -251,51 +259,68 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             is_search_companies= True
         elif 'listGender' in self.path:
             is_list_patient_sex=True
+        elif 'secret' in self.path:
+            is_secret=True
+        elif 'redirect'in self.path:
+            is_redirect=True
         else:
             is_not_url=True
             is_found=False
 
-        if is_found:
+
+        if is_secret:
+            self.send_response(401)
+            self.send_header('WWW-Authenticate', 'Basic realm="Login required"')
+        elif is_redirect:
+            self.send_response(302)
+            self.send_header('Location','/')
+        elif is_found:
             self.send_response(200)
+            self.send_header('Content-type','text/html')
         else:
             self.send_response(404)
+            self.send_header('Content-type','text/html')
 
-
-
-        self.send_header('Content-type','text/html')
         self.end_headers()
 
 
 
 
 
+
+
         if main_page:
-            html = self.get_main_page()
+            html = HTML.get_main_page()
             self.wfile.write(bytes(html, "utf8"))
         elif is_list_drugs:
-            drugs = self.get_drugs_from_events()
-            html = self.get_page_drugs(drugs)
-            event = self.get_event()
+            path=self.path.split('=')[1]
+            drugs = parser.get_drugs_from_events(path)
+            html = HTML.get_page_drugs(drugs)
             self.wfile.write(bytes(html, "utf8"))
         elif is_search_drug:
-            companies = self.get_companies()
-            html = self.get_page_companies(companies)
+            path=self.path.split('=')[1]
+            companies = parser.get_companies(path)
+            html = HTML.get_page_companies(companies)
             self.wfile.write(bytes(html, "utf8"))
         elif is_list_companies:
-            companynumb= self.get_companynumb()
-            html= self.get_page_companies(companynumb)
+            path=self.path.split('=')[1]
+            companynumb= parser.get_companynumb(path)
+            html= HTML.get_page_companies(companynumb)
             self.wfile.write(bytes(html, "utf8"))
         elif is_search_companies:
-            drugs= self.get_drugs()
-            html = self.get_page_drugs(drugs)
+            path=self.path.split('=')[1]
+            drugs= parser.get_drugs(path)
+            html = HTML.get_page_drugs(drugs)
             self.wfile.write(bytes(html, "utf8"))
         elif is_list_patient_sex:
-            patientsex= self.get_patient_sex()
-            html= self.get_page_patient_sex(patientsex)
+            path=self.path.split('=')[1]
+            patientsex= parser.get_patient_sex(path)
+            html= HTML.get_page_patient_sex(patientsex)
             self.wfile.write(bytes(html, "utf8"))
         elif is_not_url:
-            html= self.get_page_error_404()
+            html= HTML.get_page_error_404()
             self.wfile.write(bytes(html, "utf8"))
+
 
 
         return
