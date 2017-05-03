@@ -83,6 +83,16 @@ class OpenFDAParser():
             drugs += [event['patient']['drug'][0]['medicinalproduct']]
         return drugs
 
+    def get_drug_effects(self,path):
+        client= OpenFDAClient()
+        events= client.get_event(path)
+        effects = []
+        results = events['results']
+        for effect in results:
+            effects += [effect['patient']['reaction'][0]['reactionmeddrapt']]
+        return effects
+
+
     def get_drugs(self,path):
         client= OpenFDAClient()
         events=client.get_events_search_companynumb(path)
@@ -122,6 +132,7 @@ class OpenFDAHTML():
         html = """
         <html>
             <head>
+                <title>Open FDA App</title>
             </head>
             <body>
                 <h1>OpenFDA Client</h1>
@@ -151,6 +162,21 @@ class OpenFDAHTML():
             </body>
         </html>
         """
+        return html
+
+    def get_second_main_page(self):
+
+        html = """
+        <html>
+            <head></head>
+            <body>
+                <h1>OpenFDA Client 2</h1>
+                <form method="get" action="effects">
+                    <input type = "submit" value="Drug effects list: Send to OpenFDA"></input>
+                    Limit:
+                    <input type = "text" name="limit"></input>
+                </form>
+                """
         return html
 
 
@@ -195,7 +221,7 @@ class OpenFDAHTML():
 
         return html
 
-    def get_page_patient_sex(sefl,patients):
+    def get_page_patient_sex(self,patients):
 
         s = ''
         for sex in patients:
@@ -227,6 +253,25 @@ class OpenFDAHTML():
         '''
         return html
 
+    def get_page_effects(self,effects):
+        s = ''
+        for effect in effects:
+            s += '<li>' +effect+ '</li>'
+
+        html = '''
+        <html>
+        <head> </head>
+        <body>
+            <h1>Drug effects</h1>
+            <ol>
+                %s
+            </ol>
+        </body>
+        </html>
+        ''' %(s)
+
+        return html
+
 
 
 class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
@@ -238,6 +283,8 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         HTML= OpenFDAHTML()
 
         main_page = False
+        is_second_main_page=False
+        is_list_effects=False
         is_list_drugs = False
         is_search_drug = False
         is_list_companies= False
@@ -249,9 +296,11 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         is_redirect=False
         if self.path == '/':
             main_page = True
-        elif '/listDrugs' in self.path:
+        elif 'secondMainPage' in self.path:
+            is_second_main_page=True
+        elif 'listDrugs' in self.path:
             is_list_drugs = True
-        elif '/listCompanies' in self.path:
+        elif 'listCompanies' in self.path:
             is_list_companies= True
         elif 'searchDrug' in self.path:
             is_search_drug = True
@@ -263,6 +312,8 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             is_secret=True
         elif 'redirect'in self.path:
             is_redirect=True
+        elif 'effects' in self.path:
+            is_list_effects=True
         else:
             is_not_url=True
             is_found=False
@@ -292,6 +343,9 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         if main_page:
             html = HTML.get_main_page()
             self.wfile.write(bytes(html, "utf8"))
+        elif is_second_main_page:
+            html=HTML.get_second_main_page()
+            self.wfile.write(bytes(html,"utf8"))
         elif is_list_drugs:
             path=self.path.split('=')[1]
             drugs = parser.get_drugs_from_events(path)
@@ -316,6 +370,11 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             path=self.path.split('=')[1]
             patientsex= parser.get_patient_sex(path)
             html= HTML.get_page_patient_sex(patientsex)
+            self.wfile.write(bytes(html, "utf8"))
+        elif is_list_effects:
+            path=self.path.split('=')[1]
+            effects= parser.get_drug_effects(path)
+            html= HTML.get_page_effects(effects)
             self.wfile.write(bytes(html, "utf8"))
         elif is_not_url:
             html= HTML.get_page_error_404()
